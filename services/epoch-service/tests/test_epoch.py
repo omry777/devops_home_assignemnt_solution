@@ -26,16 +26,19 @@ def test_epoch_returns_expected_values_from_mock_data(case: dict[str, object]) -
 def test_epoch_rejects_missing_date() -> None:
     response = client.post("/epoch", json={})
 
-    assert response.status_code == 422
+    assert response.status_code == 422, f"Missing date must be rejected: {response.json()}"
 
 
 def test_epoch_rejects_invalid_date() -> None:
     response = client.post("/epoch", json={"date": "tomorrow morning"})
 
-    assert response.status_code == 422
+    assert response.status_code == 422, f"Invalid date must be rejected: {response.json()}"
 
 
 def test_epoch_rejects_naive_timestamp() -> None:
     response = client.post("/epoch", json={"date": "2026-06-15T10:00:00"})
 
-    assert response.status_code == 200
+    assert response.status_code == 422, (
+        "Naive timestamps must be rejected because they do not include a timezone; "
+        f"got response body: {response.json()}"
+    )
