@@ -1,0 +1,5 @@
+server:
+  port: 8080
+
+epoch:
+  base-url: ${EPOCH_BASEURL:http://localhost:8081}

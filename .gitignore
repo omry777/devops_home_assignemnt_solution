@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+services/now-time-service/.gradle/
+services/now-time-service/build/
+
+*.log

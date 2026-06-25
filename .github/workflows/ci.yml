@@ -1,0 +1,107 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      epoch: ${{ steps.filter.outputs.epoch }}
+      now_time: ${{ steps.filter.outputs.now_time }}
+      integration: ${{ steps.filter.outputs.integration }}
+      any_service: ${{ steps.filter.outputs.epoch == 'true' || steps.filter.outputs.now_time == 'true' || steps.filter.outputs.integration == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            epoch:
+              - 'services/epoch-service/**'
+            now_time:
+              - 'services/now-time-service/**'
+            integration:
+              - 'docker-compose.yml'
+              - 'Makefile'
+              - 'tests/integration/**'
+              - '.github/workflows/**'
+
+  ci:
+    runs-on: ubuntu-latest
+    needs: changes
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: needs.changes.outputs.epoch == 'true' || needs.changes.outputs.integration == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/epoch-service/requirements-dev.txt
+
+      - name: Install Python dependencies
+        if: needs.changes.outputs.epoch == 'true' || needs.changes.outputs.integration == 'true'
+        run: python -m pip install -r services/epoch-service/requirements-dev.txt
+
+      - name: Verify Python formatting
+        if: needs.changes.outputs.epoch == 'true'
+        working-directory: services/epoch-service
+        run: python -m ruff format --check .
+
+      - name: Lint Python service
+        if: needs.changes.outputs.epoch == 'true'
+        working-directory: services/epoch-service
+        run: python -m ruff check .
+
+      - name: Test epoch-service
+        if: needs.changes.outputs.epoch == 'true'
+        working-directory: services/epoch-service
+        run: python -m pytest
+
+      - name: Test now-time-service
+        if: needs.changes.outputs.now_time == 'true'
+        working-directory: services/now-time-service
+        run: docker run --rm -v "$PWD:/workspace" -w /workspace gradle:9-jdk21-alpine gradle --no-daemon test
+
+      - name: Build epoch-service image for PR
+        if: github.event_name == 'pull_request' && needs.changes.outputs.epoch == 'true'
+        run: docker build services/epoch-service
+
+      - name: Build now-time-service image for PR
+        if: github.event_name == 'pull_request' && needs.changes.outputs.now_time == 'true'
+        run: docker build services/now-time-service
+
+      - name: Run service integration test
+        if: needs.changes.outputs.any_service == 'true'
+        run: |
+          docker compose up -d --build
+          trap 'docker compose down --remove-orphans' EXIT
+          python -m pytest tests/integration
+
+      - name: Build and simulate publish epoch-service image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.epoch == 'true'
+        run: |
+          repo="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${repo}/epoch-service:${GITHUB_SHA}"
+          docker build -t "${image}" services/epoch-service
+          echo "Simulated publish: ${image}"
+
+      - name: Build and simulate publish now-time-service image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.now_time == 'true'
+        run: |
+          repo="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${repo}/now-time-service:${GITHUB_SHA}"
+          docker build -t "${image}" services/now-time-service
+          echo "Simulated publish: ${image}"
+
+      - name: No service changes
+        if: needs.changes.outputs.any_service != 'true'
+        run: echo "No affected services detected."

@@ -1,0 +1,26 @@
+services:
+  epoch-service:
+    build:
+      context: ./services/epoch-service
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8081/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  now-time-service:
+    build:
+      context: ./services/now-time-service
+    environment:
+      EPOCH_BASEURL: http://epoch-service:8081
+    ports:
+      - "8080:8080"
+    depends_on:
+      epoch-service:
+        condition: service_healthy
