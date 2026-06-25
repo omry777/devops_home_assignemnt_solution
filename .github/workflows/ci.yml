@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        if: needs.changes.outputs.epoch == 'true' || needs.changes.outputs.integration == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || needs.changes.outputs.epoch == 'true' || needs.changes.outputs.integration == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -48,26 +48,26 @@ jobs:
           cache-dependency-path: services/epoch-service/requirements-dev.txt
 
       - name: Install Python dependencies
-        if: needs.changes.outputs.epoch == 'true' || needs.changes.outputs.integration == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || needs.changes.outputs.epoch == 'true' || needs.changes.outputs.integration == 'true'
         run: python -m pip install -r services/epoch-service/requirements-dev.txt
 
       - name: Verify Python formatting
-        if: needs.changes.outputs.epoch == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || needs.changes.outputs.epoch == 'true'
         working-directory: services/epoch-service
         run: python -m ruff format --check .
 
       - name: Lint Python service
-        if: needs.changes.outputs.epoch == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || needs.changes.outputs.epoch == 'true'
         working-directory: services/epoch-service
         run: python -m ruff check .
 
       - name: Test epoch-service
-        if: needs.changes.outputs.epoch == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || needs.changes.outputs.epoch == 'true'
         working-directory: services/epoch-service
         run: python -m pytest
 
       - name: Test now-time-service
-        if: needs.changes.outputs.now_time == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || needs.changes.outputs.now_time == 'true'
         working-directory: services/now-time-service
         run: docker run --rm -v "$PWD:/workspace" -w /workspace gradle:9-jdk21-alpine gradle --no-daemon test
 
@@ -80,14 +80,14 @@ jobs:
         run: docker build services/now-time-service
 
       - name: Run service integration test
-        if: needs.changes.outputs.any_service == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || needs.changes.outputs.any_service == 'true'
         run: |
           docker compose up -d --build
           trap 'docker compose down --remove-orphans' EXIT
           python -m pytest tests/integration
 
       - name: Build and simulate publish epoch-service image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.epoch == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           repo="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           image="ghcr.io/${repo}/epoch-service:${GITHUB_SHA}"
@@ -95,7 +95,7 @@ jobs:
           echo "Simulated publish: ${image}"
 
       - name: Build and simulate publish now-time-service image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.now_time == 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           repo="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           image="ghcr.io/${repo}/now-time-service:${GITHUB_SHA}"
@@ -103,5 +103,5 @@ jobs:
           echo "Simulated publish: ${image}"
 
       - name: No service changes
-        if: needs.changes.outputs.any_service != 'true'
+        if: github.event_name == 'pull_request' && needs.changes.outputs.any_service != 'true'
         run: echo "No affected services detected."
