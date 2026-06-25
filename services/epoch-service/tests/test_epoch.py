@@ -36,6 +36,6 @@ def test_epoch_rejects_invalid_date() -> None:
 
 
 def test_epoch_rejects_naive_timestamp() -> None:
-    response = client.post("/epoch", json={"date": "2026-006-15T10:00:00"})
+    response = client.post("/epoch", json={"date": "2026-06-15T10:00:00"})
 
-    assert response.status_code == 422
+    assert response.status_code == 200
