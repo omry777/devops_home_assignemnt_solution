@@ -1,22 +1,26 @@
+import json
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 client = TestClient(app)
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-def test_epoch_accepts_utc_timestamp() -> None:
-    response = client.post("/epoch", json={"date": "2026-06-15T10:00:00Z"})
+def load_epoch_cases() -> list[dict[str, object]]:
+    with (FIXTURES_DIR / "epoch_cases.json").open() as fixture:
+        return json.load(fixture)
+
+
+@pytest.mark.parametrize("case", load_epoch_cases(), ids=lambda case: str(case["name"]))
+def test_epoch_returns_expected_values_from_mock_data(case: dict[str, object]) -> None:
+    response = client.post("/epoch", json={"date": case["date"]})
 
     assert response.status_code == 200
-    assert response.json() == {"epoch": 1781517600}
-
-
-def test_epoch_accepts_timezone_offset() -> None:
-    response = client.post("/epoch", json={"date": "2026-06-15T13:00:00+03:00"})
-
-    assert response.status_code == 200
-    assert response.json() == {"epoch": 1781517600}
+    assert response.json() == {"epoch": case["epoch"]}
 
 
 def test_epoch_rejects_missing_date() -> None:

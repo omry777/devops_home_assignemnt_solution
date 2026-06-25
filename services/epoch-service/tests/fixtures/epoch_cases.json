@@ -1,0 +1,22 @@
+[
+  {
+    "name": "assignment sample",
+    "date": "2026-06-15T10:00:00Z",
+    "epoch": 1781517600
+  },
+  {
+    "name": "same instant with timezone offset",
+    "date": "2026-06-15T13:00:00+03:00",
+    "epoch": 1781517600
+  },
+  {
+    "name": "unix epoch start",
+    "date": "1970-01-01T00:00:00Z",
+    "epoch": 0
+  },
+  {
+    "name": "leap day",
+    "date": "2024-02-29T23:59:59Z",
+    "epoch": 1709251199
+  }
+]
